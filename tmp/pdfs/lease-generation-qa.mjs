@@ -1,0 +1,15 @@
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { readFile, writeFile } from 'node:fs/promises';
+const pdf=await PDFDocument.load(await readFile('public/tenancy-agreement-template.pdf'));
+const pages=pdf.getPages(); const font=await pdf.embedFont(StandardFonts.TimesRoman);
+function field(page,value,x,y,width,size=10){if(!value.trim())return;let s=size;while(s>6.5&&font.widthOfTextAtSize(value,s)>width)s-=.25;page.drawRectangle({x:x-3,y:y-4,width:width+6,height:s+9,color:rgb(1,1,1)});page.drawText(value,{x,y,font,size:s,color:rgb(.08,.08,.08)});}
+function wrap(text,width,size){const lines=[];let line='';for(const word of text.split(/\s+/)){const next=line?`${line} ${word}`:word;if(line&&font.widthOfTextAtSize(next,size)>width){lines.push(line);line=word;}else line=next;}if(line)lines.push(line);return lines;}
+function fmt(s){const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('en-NG',{day:'numeric',month:'long',year:'numeric'});}
+const agreementDate='2026-11-03';const [yr,mo,day]=agreementDate.split('-').map(Number);const suffix=day%100>=11&&day%100<=13?'th':day%10===1?'st':day%10===2?'nd':day%10===3?'rd':'th';const monthName=new Date(yr,mo-1,day).toLocaleDateString('en-NG',{month:'long'});
+field(pages[0],`${day}${suffix}`,239,579,58,10);field(pages[0],monthName,330,579,99,10);pages[0].drawRectangle({x:444,y:575,width:96,height:18,color:rgb(1,1,1)});pages[0].drawText(String(yr).slice(-2),{x:444.2,y:579,font,size:10,color:rgb(.08,.08,.08)});
+field(pages[0],'Example Landlord',73,534,193,10);field(pages[0],'Ada Example',328,534,214,10);field(pages[0],'12 Landlord Avenue, Benin City',84,511,183,9.5);field(pages[0],'Flat 4, Sample House, Benin City',329,511,212,9.5);
+field(pages[0],'Sample Property, 12 Example Road, Benin City',114,406,418,9.5);field(pages[0],'2-bedroom apartment',152,384,380,9.5);field(pages[0],'1,200,000',295,310,131,10);field(pages[0],'100,000',160,296,93,10);
+const sentence=`The tenancy shall commence on ${fmt('2026-11-01')} and shall remain valid until ${fmt('2027-10-31')}, making a total duration of 1 year (12 months), unless earlier terminated in accordance with the terms of this agreement.`;let size=9.5,lines=wrap(sentence,465,size);while(lines.length>3&&size>8.5){size-=.5;lines=wrap(sentence,465,size)};if(lines.length>3)throw Error('Duration too long');pages[0].drawRectangle({x:70,y:80,width:480,height:48,color:rgb(1,1,1)});lines.forEach((line,i)=>pages[0].drawText(line,{x:72,y:117-i*13.2,font,size,color:rgb(.08,.08,.08)}));pages[0].drawText('RentWise record · LA-2026-7E31AC · Generated 3 November 2026',{x:72,y:27,font,size:8,color:rgb(.25,.3,.27)});
+field(pages[1],'Ada Example',149,198,188,10);field(pages[2],'Ada Example',149,200,188,10);field(pages[2],'Example Landlord',109,85,226,10);
+pdf.setTitle('Tenancy Agreement LA-2026-7E31AC');pdf.setAuthor('Example Landlord');pdf.setSubject('Tenancy agreement for Ada Example');pdf.setKeywords(['RentWise NG','LA-2026-7E31AC']);
+await writeFile('tmp/pdfs/lease-generation-qa.pdf',await pdf.save());
